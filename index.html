@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your work, your well-being, In sync.</title>
+    <title>Your Work, Your Well-Being, In Sync.</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- React and ReactDOM CDN -->
@@ -192,8 +192,6 @@
                 const [habits, setHabits] = useState([]);
                 const [showHabitModal, setShowHabitModal] = useState(false);
                 const [newHabitName, setNewHabitName] = useState('');
-                const [newHabitTime, setNewHabitTime] = useState('');
-                const [isRecurring, setIsRecurring] = useState(false);
                 const [recurringInterval, setRecurringInterval] = useState(10);
                 const [activeHabitNudge, setActiveHabitNudge] = useState(null);
                 const [showAIModal, setShowAIModal] = useState(false);
@@ -346,23 +344,23 @@
                     return () => clearInterval(clockInterval);
                 }, []);
                 
-                // Recurring habit reminder effect
+                // Combined habit notification effect for recurring habits
                 useEffect(() => {
-                    const hasRecurringHabit = habits.some(h => h.isRecurring);
-                    if (hasRecurringHabit) {
-                        recurringHabitRef.current = setInterval(() => {
-                            const now = Date.now();
-                            habits.forEach(habit => {
-                                if (habit.isRecurring && now - (habit.lastNotified || 0) >= habit.recurringInterval * 60000) {
-                                    setActiveHabitNudge(habit);
-                                }
-                            });
-                        }, 10000);
-                    } else {
-                        clearInterval(recurringHabitRef.current);
-                    }
-                    return () => clearInterval(recurringHabitRef.current);
-                }, [habits]);
+                    const habitInterval = setInterval(() => {
+                        setHabits(currentHabits => currentHabits.map(habit => {
+                            const now = new Date();
+                            // Check for recurring habits
+                            if (now.getTime() - (habit.lastNotified || 0) >= habit.recurringInterval * 60000) {
+                                setActiveHabitNudge(habit);
+                                // Update lastNotified time to prevent immediate re-notification
+                                return { ...habit, lastNotified: now.getTime() };
+                            }
+                            return habit;
+                        }));
+                    }, 60000); // Check every minute
+                    
+                    return () => clearInterval(habitInterval);
+                }, []);
                 
                 // UI helper functions
                 const startFocusTimer = () => {
@@ -422,11 +420,16 @@
                 const addHabit = (e) => {
                     e.preventDefault();
                     if (newHabitName.trim()) {
-                        setHabits([...habits, { id: Date.now(), name: newHabitName, isRecurring, recurringInterval: isRecurring ? parseInt(recurringInterval) : null, lastNotified: isRecurring ? Date.now() : null, completed: false, time: newHabitTime }]);
+                        const newHabit = { 
+                            id: Date.now(), 
+                            name: newHabitName, 
+                            recurringInterval: parseInt(recurringInterval), 
+                            lastNotified: Date.now(), // Use timestamp for recurring
+                            completed: false, 
+                        };
+                        setHabits([...habits, newHabit]);
                         setDailyHabitsCount(prev => prev + 1); // Increment daily habits count
                         setNewHabitName('');
-                        setNewHabitTime('');
-                        setIsRecurring(false);
                         setRecurringInterval(10);
                         setShowHabitModal(false);
                     }
@@ -435,13 +438,23 @@
                 const closeHabitModal = () => {
                     setShowHabitModal(false);
                     setNewHabitName('');
-                    setNewHabitTime('');
-                    setIsRecurring(false);
                     setRecurringInterval(10);
                 };
                 const markHabitAsDone = (habitId) => {
-                    setHabits(habits.map(h => h.id === habitId ? { ...h, lastNotified: Date.now() } : h));
                     setActiveHabitNudge(null);
+                    setHabits(currentHabits => {
+                        const updatedHabits = currentHabits.map(h => {
+                            if (h.id === habitId) {
+                                // Mark as completed and update the last notified time/date
+                                return { ...h, completed: true, lastNotified: Date.now() };
+                            }
+                            return h;
+                        });
+                        // Recalculate completed habits count
+                        const newHabitsCompleted = updatedHabits.filter(h => h.completed).length;
+                        setHabitsCompleted(newHabitsCompleted);
+                        return updatedHabits;
+                    });
                 };
                 const toggleHabit = (id) => {
                     setHabits(habits.map((habit) =>
@@ -480,9 +493,8 @@
                     setSuggestions([]);
                     
                     //const apiKey = process.env.GEMINI_API;
-		    const apiKey = "AIzaSyAUO1nAtDqMHE_Xg65mYYOwOGY2Xytb1Qc";
-		    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-
+					const apiKey = "AIzaSyAUO1nAtDqMHE_Xg65mYYOwOGY2Xytb1Qc";
+				    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
 
                     let systemPrompt = "You are a personalized productivity and wellness coach. Provide a short, simple, actionable list of suggestions.";
                     let userQuery = "";
@@ -539,9 +551,8 @@
                     setShowAIModal(true);
                     setAiSteps([]);
                     //const apiKey = process.env.GEMINI_API;
-		    const apiKey = "AIzaSyAUO1nAtDqMHE_Xg65mYYOwOGY2Xytb1Qc";
-		    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-
+					const apiKey = "AIzaSyAUO1nAtDqMHE_Xg65mYYOwOGY2Xytb1Qc";
+				    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
                     
                     const systemPrompt = "You are a productivity expert. Your goal is to break down large, daunting tasks into small, manageable, and actionable steps. Provide a clear, numbered list of steps.";
                     const userQuery = `Break down the following task into a numbered list of actionable, sequential steps: ${taskText}`;
@@ -690,9 +701,12 @@
                                     />
                                     <button
                                         type="submit"
-                                        className="py-3 px-6 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors"
+                                        className="p-3 bg-blue-600 text-white rounded-full font-bold hover:bg-blue-700 transition-colors transform hover:scale-110"
+                                        aria-label="Add a new task"
                                     >
-                                        Add
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                        </svg>
                                     </button>
                                 </form>
                                 <ul className="space-y-3">
@@ -748,14 +762,9 @@
                                 </div>
                                 <ul className="space-y-3">
                                     {habits.map((habit) => {
-                                        let timeDisplay = '';
-                                        if (habit.isRecurring) {
-                                            const timeElapsed = Math.floor((Date.now() - (habit.lastNotified || Date.now())) / 1000);
-                                            const timeRemaining = (habit.recurringInterval * 60) - timeElapsed;
-                                            timeDisplay = timeRemaining > 0 ? `Next in: ${formatTime(timeRemaining)}` : 'Time to do it!';
-                                        } else {
-                                            timeDisplay = habit.time;
-                                        }
+                                        const timeElapsed = Math.floor((Date.now() - (habit.lastNotified || Date.now())) / 1000);
+                                        const timeRemaining = (habit.recurringInterval * 60) - timeElapsed;
+                                        const timeDisplay = timeRemaining > 0 ? `Next in: ${formatTime(timeRemaining)}` : 'Time to do it!';
                                         return (
                                             <li
                                                 key={habit.id}
@@ -872,18 +881,10 @@
                                             required
                                         />
                                         <div className="flex items-center gap-2 mb-4">
-                                            <input type="checkbox" id="isRecurring" checked={isRecurring} onChange={(e) => setIsRecurring(e.target.checked)} className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"/>
-                                            <label htmlFor="isRecurring" className="text-gray-700">Recurring Habit</label>
+                                            <span className="text-gray-700">Remind me every</span>
+                                            <input type="number" value={recurringInterval} onChange={(e) => setRecurringInterval(e.target.value)} min="1" className="w-20 text-center p-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+                                            <span className="text-gray-700">minutes</span>
                                         </div>
-                                        {isRecurring ? (
-                                            <div className="flex items-center gap-2 mb-4">
-                                                <span className="text-gray-700">Remind me every</span>
-                                                <input type="number" value={recurringInterval} onChange={(e) => setNewHabitInterval(e.target.value)} min="1" className="w-20 text-center p-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
-                                                <span className="text-gray-700">minutes</span>
-                                            </div>
-                                        ) : (
-                                            <input type="text" value={newHabitTime} onChange={(e) => setNewHabitTime(e.target.value)} placeholder="Time (e.g., 9:00 AM)" className="w-full p-3 mb-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-shadow"/>
-                                        )}
                                         <div className="flex justify-center gap-4 mt-4">
                                             <button type="button" onClick={closeHabitModal} className="py-2 px-6 bg-gray-300 text-gray-800 rounded-full font-bold hover:bg-gray-400 transition-colors">Cancel</button>
                                             <button type="submit" className="py-2 px-6 bg-blue-600 text-white rounded-full font-bold hover:bg-blue-700 transition-colors">Save</button>
@@ -943,4 +944,3 @@
     </div>
 </footer>
 </html>
-
