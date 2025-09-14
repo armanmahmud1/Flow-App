@@ -1,22 +1,28 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
 export default async function handler(request, response) {
-  if (request.method !== 'POST') {
-    response.status(405).json({ error: 'Method Not Allowed' });
-    return;
-  }
+    // Only allow POST requests
+    if (request.method !== 'POST') {
+        return response.status(405).json({ error: 'Method Not Allowed' });
+    }
 
-  try {
-    const { prompt } = await request.json();
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-preview-05-20" });
-    const result = await model.generateContent(prompt);
-    const apiResponse = await result.response;
-    const text = apiResponse.text();
-    response.status(200).json({ text });
-  } catch (error) {
-    console.error('Error generating content:', error);
-    response.status(500).json({ error: 'Failed to generate content.' });
-  }
+    try {
+        const { prompt } = request.body;
+
+        if (!prompt) {
+            return response.status(400).json({ error: 'Prompt is required' });
+        }
+
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        const result = await model.generateContent(prompt);
+        const text = result.response.text();
+
+        response.status(200).json({ text });
+
+    } catch (error) {
+        console.error("Gemini API Error:", error.message);
+        response.status(500).json({ error: 'Failed to generate content from Gemini API.' });
+    }
 }
