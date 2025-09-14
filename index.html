@@ -492,8 +492,8 @@
                     setShowSuggestionsModal(true);
                     setSuggestions([]);
                     
-                    //const apiKey = process.env.GEMINI_API;
-					const apiKey = "AIzaSyAUO1nAtDqMHE_Xg65mYYOwOGY2Xytb1Qc";
+                    const apiKey = process.env.GEMINI_API;
+					
 				    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
 
                     let systemPrompt = "You are a personalized productivity and wellness coach. Provide a short, simple, actionable list of suggestions.";
@@ -550,8 +550,8 @@
                     setAiLoading(true);
                     setShowAIModal(true);
                     setAiSteps([]);
-                    //const apiKey = process.env.GEMINI_API;
-					const apiKey = "AIzaSyAUO1nAtDqMHE_Xg65mYYOwOGY2Xytb1Qc";
+                    const apiKey = process.env.GEMINI_API;
+					
 				    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
                     
                     const systemPrompt = "You are a productivity expert. Your goal is to break down large, daunting tasks into small, manageable, and actionable steps. Provide a clear, numbered list of steps.";
@@ -944,3 +944,4 @@
     </div>
 </footer>
 </html>
+
