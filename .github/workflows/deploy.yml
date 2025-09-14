@@ -2,7 +2,7 @@ name: Deploy static site with secret
 
 on:
   push:
-    branches: [ main ]   # or change to [ master ] if that's your default branch
+    branches: [ main ]   # or [ master ] if your repo uses master
 
 permissions:
   contents: read
@@ -28,6 +28,10 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: build
+    environment:
+      name: github-pages   # ✅ required for Pages deployments
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
