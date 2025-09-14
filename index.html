@@ -29,7 +29,6 @@
         // Wait for the window to load before running the React code to ensure ReactDOM is available
         window.onload = function() {
             const { useState, useEffect, useRef } = React;
-            const { createRoot } = ReactDOM;
 
             // Mock data for AI nudges and breaks
             const focusNudges = [
@@ -220,11 +219,11 @@
                 const [tasksAssigned, setTasksAssigned] = useState(0);
                 const [dailyHabitsCount, setDailyHabitsCount] = useState(0); // New state for daily habit count
                 const [productivityScore, setProductivityScore] = useState(0);
-                
-                // State for Gemini Chat
-                const [aiChatPrompt, setAiChatPrompt] = useState('');
-                const [aiChatResponse, setAiChatResponse] = useState('');
-                const [aiChatLoading, setAiChatLoading] = useState(false);
+
+                // Chatbot state
+                const [chatHistory, setChatHistory] = useState([]);
+                const [chatInput, setChatInput] = useState('');
+                const [isChatLoading, setIsChatLoading] = useState(false);
 
                 // Refs for managing intervals
                 const timerRef = useRef(null);
@@ -497,8 +496,9 @@
                     setShowSuggestionsModal(true);
                     setSuggestions([]);
                     
-                    const proxyUrl = 'https://flow-app-seven-psi.vercel.app/api/gemini-proxy';
-                    
+                    const apiKey = "AIzaSyAUO1nAtDqMHE_Xg65mYYOwOGY2Xytb1Qc";
+				    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
                     let systemPrompt = "You are a personalized productivity and wellness coach. Provide a short, simple, actionable list of suggestions.";
                     let userQuery = "";
                     let title = "";
@@ -530,13 +530,13 @@
                     };
                     
                     try {
-                        const response = await fetch(proxyUrl, {
+                        const response = await fetch(apiUrl, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(payload)
                         });
                         const result = await response.json();
-                        const generatedText = result?.text;
+                        const generatedText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
                         if (generatedText) {
                             const steps = generatedText.split('\n').filter(line => line.trim().length > 0);
                             setSuggestions(steps);
@@ -553,18 +553,19 @@
                     setAiLoading(true);
                     setShowAIModal(true);
                     setAiSteps([]);
-                    const proxyUrl = 'https://flow-app-seven-psi.vercel.app/api/gemini-proxy';
+                    const apiKey = "AIzaSyAUO1nAtDqMHE_Xg65mYYOwOGY2Xytb1Qc";
+				    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
                     
-                    const systemPrompt = "You are a productivity expert. Your goal is to break down large, daunting tasks into small, manageable, and actionable steps. Provide a clear, numbered list of steps.";
+                    const systemPrompt = "You are a productivity expert. Your goal is to break down large, daunting tasks into small, manageable, and actionable steps. Provide a clear, numbered list of steps. Do not include a conversational intro. Only return the list.";
                     const userQuery = `Break down the following task into a numbered list of actionable, sequential steps: ${taskText}`;
                     
-                    const payload = { contents: [{ parts: [{ text: userQuery }] }], systemInstruction: { parts: [{ text: systemPrompt }] } };
+                    const payload = { contents: [{ parts: [{ text: userQuery }] }], systemInstruction: { parts: [{ text: systemPrompt }]} };
 
                     try {
-                        let response = await fetch(proxyUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                        let response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                         if (!response.ok) throw new Error(`API call failed: ${response.statusText}`);
                         const result = await response.json();
-                        const generatedText = result?.text;
+                        const generatedText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
                         if (generatedText) {
                             const steps = generatedText.split('\n').filter(line => line.trim().length > 0);
                             setAiSteps(steps);
@@ -585,33 +586,49 @@
                     setTasksAssigned(prev => prev + newTasks.length); // Increment tasks assigned for each new task
                     setShowAIModal(false);
                 };
-                
-                // New function to handle the chat API call
-                const callGeminiAPI = async () => {
-                    if (!aiChatPrompt.trim()) return;
-                    setAiChatLoading(true);
-                    setAiChatResponse('');
-                    
-                    const proxyUrl = 'https://flow-app-seven-psi.vercel.app/api/gemini-proxy';
+
+                // Function to handle sending a chat message
+                const sendChatMessage = async (e) => {
+                    e.preventDefault();
+                    if (!chatInput.trim()) return;
+
+                    const userMessage = { role: 'user', content: chatInput };
+                    const updatedChatHistory = [...chatHistory, userMessage];
+                    setChatHistory(updatedChatHistory);
+                    setChatInput('');
+                    setIsChatLoading(true);
+
+                    const apiKey = "AIzaSyAUO1nAtDqMHE_Xg65mYYOwOGY2Xytb1Qc";
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+                    const systemPrompt = "You are a friendly and encouraging wellness and productivity coach. Keep your responses concise and positive. Ask questions to keep the conversation going.";
+
+                    const payload = {
+                        contents: [
+                            ...updatedChatHistory.map(msg => ({ role: msg.role === 'user' ? 'user' : 'model', parts: [{ text: msg.content }] })),
+                            // Add a separator or a final instruction to guide the model
+                            { role: 'user', parts: [{ text: 'Please respond now.' }] }
+                        ],
+                        systemInstruction: { parts: [{ text: systemPrompt }] },
+                    };
 
                     try {
-                        const response = await fetch(proxyUrl, {
+                        const response = await fetch(apiUrl, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ prompt: aiChatPrompt })
+                            body: JSON.stringify(payload),
                         });
-
-                        const data = await response.json();
-                        if (data.error) {
-                            setAiChatResponse(`Error: ${data.error}`);
+                        const result = await response.json();
+                        const aiMessage = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+                        if (aiMessage) {
+                            setChatHistory(prev => [...prev, { role: 'model', content: aiMessage }]);
                         } else {
-                            setAiChatResponse(data.text);
+                            setChatHistory(prev => [...prev, { role: 'model', content: "Sorry, I couldn't process that. Could you try again?" }]);
                         }
                     } catch (error) {
-                        console.error('Error calling proxy:', error);
-                        setAiChatResponse('Error: Check the console for details.');
+                        console.error("Error sending chat message:", error);
+                        setChatHistory(prev => [...prev, { role: 'model', content: "An error occurred. Please check your network connection and try again." }]);
                     } finally {
-                        setAiChatLoading(false);
+                        setIsChatLoading(false);
                     }
                 };
 
@@ -720,7 +737,7 @@
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
                             {/* Tasks Panel */}
                             <div className="bg-white p-6 rounded-[2rem] shadow-lg border-2 border-gray-200">
-                                <h2 className="text-2xl font-bold text-blue-700 mb-4">Today's Tasks</h2>
+                                <h2 className="text-2xl font-bold text-green-700 mb-4">Today's Tasks</h2>
                                 <form onSubmit={addTask} className="flex gap-2 mb-6">
                                     <input
                                         type="text"
@@ -829,40 +846,61 @@
                                 </ul>
                             </div>
                         </div>
-
-                        {/* Gemini Chat Panel */}
-                        <div className="bg-white p-6 rounded-[2rem] shadow-lg border-2 border-gray-200">
-                            <h2 className="text-2xl font-bold text-gray-700 mb-4">Ask Gemini</h2>
-                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mb-4">
+                        
+                        {/* Chatbot Section */}
+                        <section class="p-6 md:p-8 bg-white rounded-[2rem] border-2 border-orange-200 shadow-lg flex flex-col h-[400px] mb-10">
+                            <h2 class="text-3xl font-bold text-orange-700 mb-4">Ask Gemini</h2>
+                            <form onSubmit={sendChatMessage} class="flex items-center space-x-4 mb-4">
                                 <input
+                                    id="queryInput"
                                     type="text"
-                                    value={aiChatPrompt}
-                                    onChange={(e) => setAiChatPrompt(e.target.value)}
+                                    value={chatInput}
+                                    onChange={(e) => setChatInput(e.target.value)}
                                     placeholder="e.g., Explain the Pomodoro Technique"
-                                    className="flex-grow p-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-shadow"
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            callGeminiAPI();
-                                        }
-                                    }}
+                                    class="flex-grow p-4 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-shadow"
+                                    disabled={isChatLoading}
                                 />
                                 <button
-                                    onClick={callGeminiAPI}
-                                    className="px-6 py-3 bg-gray-700 text-white font-semibold rounded-full shadow hover:bg-gray-800 transition duration-200"
-                                    disabled={aiChatLoading}
+                                    id="askButton"
+                                    type="submit"
+                                    class="py-4 px-8 bg-orange-600 text-white rounded-full font-bold hover:bg-orange-700 transition-colors shadow-md disabled:bg-gray-400"
+                                    disabled={isChatLoading}
                                 >
-                                    {aiChatLoading ? 'Thinking...' : 'Ask'}
+                                    Ask
                                 </button>
+                            </form>
+                            <div class="h-[250px] overflow-y-auto space-y-4 p-2 rounded-2xl bg-gray-50 border border-gray-200">
+                                {chatHistory.length === 0 && !isChatLoading && (
+                                    <p class="text-center text-gray-400 italic mt-8">
+                                        Your response will appear here.
+                                    </p>
+                                )}
+                                {chatHistory.map((message, index) => (
+                                    <div 
+                                        key={index}
+                                        class={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                                    >
+                                        <div class={`p-3 rounded-2xl max-w-[70%] text-sm shadow-sm ${
+                                            message.role === 'user' 
+                                                ? 'bg-orange-600 text-white rounded-br-none' 
+                                                : 'bg-orange-100 text-orange-800 rounded-bl-none'
+                                        }`}>
+                                            {message.content}
+                                        </div>
+                                    </div>
+                                ))}
+                                {isChatLoading && (
+                                    <div class="flex justify-start">
+                                        <div class="p-3 bg-gray-200 rounded-2xl rounded-bl-none">
+                                            <div class="w-6 h-6 border-2 border-orange-500 border-dashed rounded-full animate-spin"></div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                            <div id="ai-chat-response" className="p-4 bg-gray-50 border border-gray-200 rounded-lg min-h-[100px] whitespace-pre-wrap text-gray-800">
-                                {aiChatResponse || "Your response will appear here."}
-                            </div>
-                        </div>
-
+                        </section>
 
                         {/* Motivational Quote Section */}
-                        <section className="p-6 md:p-8 bg-white rounded-[2rem] border-2 border-teal-200 shadow-md text-center mt-8">
+                        <section className="p-6 md:p-8 bg-white rounded-[2rem] border-2 border-teal-200 shadow-md text-center">
                             <p className="text-2xl md:text-3xl font-light italic text-gray-600 mb-2">"{dailyQuote.split('-')[0].trim()}"</p>
                             <p className="text-lg font-medium text-gray-500">- {dailyQuote.split('-')[1].trim()}</p>
                         </section>
@@ -991,7 +1029,7 @@
                     </div>
                 );
             };
-            const root = createRoot(document.getElementById('root'));
+            const root = ReactDOM.createRoot(document.getElementById('root'));
             root.render(<App />);
         };
     </script>
@@ -1005,4 +1043,3 @@
     </div>
 </footer>
 </html>
-
