@@ -16,7 +16,7 @@ jobs:
       # 1. Checkout the repo
       - uses: actions/checkout@v4
 
-      # 2. Install Node.js
+      # 2. Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
@@ -30,13 +30,20 @@ jobs:
       - name: Build React app
         run: npm run build
 
-      # 5. Replace API key in built JS
+      # 5. List JS files in build folder (optional, for debugging)
+      - name: List JS files
+        run: find build -type f -name "*.js"
+
+      # 6. Replace API key in all JS files
       - name: Replace API key in build folder
         run: |
-          find build/static/js -type f -name "*.js" -print0 | \
-          xargs -0 perl -pi -e 's|process\.env\.GEMINI_API|"${{ secrets.GEMINI_API }}"|g'
+          echo "Replacing API key in built JS files..."
+          JS_FILES=$(find build -type f -name "*.js")
+          for file in $JS_FILES; do
+            perl -pi -e "s|process\.env\.GEMINI_API|\"${{ secrets.GEMINI_API }}\"|g" "$file"
+          done
 
-      # 6. Upload artifact for Pages
+      # 7. Upload Pages artifact
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -46,7 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     environment:
-      name: github-pages
+      name: github-pages   # required for Pages deployments
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
