@@ -1,0 +1,12 @@
+{
+  "name": "my-gemini-app",
+  "version": "1.0.0",
+  "description": "A simple app to test the Gemini API.",
+  "main": "index.js",
+  "scripts": {
+    "start": "vercel dev"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.13.0"
+  }
+}
