@@ -30,18 +30,23 @@ jobs:
       - name: Build React app
         run: npm run build
 
-      # 5. List JS files in build folder (optional, for debugging)
-      - name: List JS files
-        run: find build -type f -name "*.js"
+      # 5. Debug: list files in build folder
+      - name: List files in build folder
+        run: find build
 
-      # 6. Replace API key in all JS files
+      # 6. Replace API key in all JS files safely
       - name: Replace API key in build folder
         run: |
           echo "Replacing API key in built JS files..."
-          JS_FILES=$(find build -type f -name "*.js")
-          for file in $JS_FILES; do
-            perl -pi -e "s|process\.env\.GEMINI_API|\"${{ secrets.GEMINI_API }}\"|g" "$file"
-          done
+          if [ -d "build" ]; then
+            find build -type f -name "*.js" | while read file; do
+              echo "Processing $file"
+              perl -pi -e "s|process\.env\.GEMINI_API|\"${{ secrets.GEMINI_API }}\"|g" "$file"
+            done
+          else
+            echo "Build folder not found! Exiting."
+            exit 1
+          fi
 
       # 7. Upload Pages artifact
       - name: Upload Pages artifact
