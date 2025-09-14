@@ -2,7 +2,7 @@ name: Deploy React site with secret API key
 
 on:
   push:
-    branches: [ main ]   # change to [ master ] if your default branch is master
+    branches: [ main ]
 
 permissions:
   contents: read
@@ -13,42 +13,37 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      # 1. Checkout the repo
       - uses: actions/checkout@v4
 
-      # 2. Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '20'
 
-      # 3. Install dependencies
       - name: Install dependencies
         run: npm install
 
-      # 4. Build React app
       - name: Build React app
         run: npm run build
 
-      # 5. Debug: list files in build folder
       - name: List files in build folder
         run: find build
 
-      # 6. Replace API key in all JS files safely
       - name: Replace API key in build folder
         run: |
           echo "Replacing API key in built JS files..."
           if [ -d "build" ]; then
             find build -type f -name "*.js" | while read file; do
               echo "Processing $file"
-              perl -pi -e "s|process\.env\.GEMINI_API|\"${{ secrets.GEMINI_API }}\"|g" "$file"
+              sed -i "s|process\.env\.GEMINI_API|${GEMINI_API}|g" "$file"
             done
           else
             echo "Build folder not found! Exiting."
             exit 1
           fi
+        env:
+          GEMINI_API: ${{ secrets.GEMINI_API }}
 
-      # 7. Upload Pages artifact
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -58,7 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     environment:
-      name: github-pages   # required for Pages deployments
+      name: github-pages
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
