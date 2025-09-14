@@ -1,4 +1,4 @@
 - name: Flow-App
 run: npm run build
 env:
-  GEMINI_API: ${{ secrets.GEMINI_API}}
+  GEMINI_API: ${{secrets.GEMINI_API}}
